@@ -1,0 +1,365 @@
+#Импорт модулей
+import shutil, ctypes, time, os, sys, pathlib, tempfile, stat, errno, getpass, datetime
+from colorama import init, Fore, Style
+from datetime import datetime
+init(autoreset=False)
+
+#Переменные для опций функ. EmptyBin
+SHERB_NOCONFIRMATION    = 1
+SHERB_NOPROGRESSUI      = 2
+SHERB_NOSOUND           = 4
+
+#Функция очистки корзины, используется функция SHEmptyRecycleBin
+#в стандартной библиотеке Windows shell32
+def EmptyBin(options=SHERB_NOCONFIRMATION or SHERB_NOPROGRESSUI or SHERB_NOSOUND):
+    ctypes.windll.shell32.SHEmptyRecycleBinA(None, None, options)
+
+#Функция очистки папки загрузок
+def DownloadsClean():
+    #Удаление папки. Дополнительно обработчик доступности
+    shutil.rmtree(DownloadsPath, ignore_errors=False, onerror=handleRemoveReadonly)
+    #Таймаут 2 секунды
+
+#Функция очистки папки темп текущего пользователя
+def TempClean():
+    #Удаление папки. Дополнительно обработчик доступности
+    shutil.rmtree(TempPath, ignore_errors=False, onerror=handleRemoveReadonly)
+    #Таймаут 2 секунды
+
+#Функция получения пути папки Downloads
+def get_download_path():
+    if os.name == 'nt':
+        import winreg
+        sub_key = r'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders'
+        downloads_guid = '{374DE290-123F-4565-9164-39C4925E467B}'
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
+            location = winreg.QueryValueEx(key, downloads_guid)[0]
+        return location
+    else:
+        return os.path.join(os.path.expanduser('~'), 'downloads')
+
+#Функция смены прав на файлах "только для чтения"
+def handleRemoveReadonly(func, path, exc):
+  excvalue = exc[1]
+  if func in (os.rmdir, os.remove) and excvalue.errno == errno.EACCES:
+      os.chmod(path, stat.S_IRWXU| stat.S_IRWXG| stat.S_IRWXO) # 0777
+      func(path)
+  else:
+      raise
+#Переменная с именем пользователя
+UserName        = getpass.getuser()
+#.. с путем к папке Dowloads
+DownloadsPath   = get_download_path()
+#.. с путем к папке Temp
+TempPath        = 'C:/Users/'+UserName+'/AppData/Local/Temp'
+#UserDirectiry   = os.path.expanduser(UserName)
+
+#Название программы
+print(Fore.MAGENTA +'╔══╗╔══╗╔╗──╔╗╔═══╗╔╗──╔═══╗',Style.BRIGHT)
+print(Fore.MAGENTA +'║╔═╝╚╗╔╝║║──║║║╔═╗║║║──║╔══╝')
+print(Fore.MAGENTA +'║╚═╗─║║─║╚╗╔╝║║╚═╝║║║──║╚══╗')
+print(Fore.MAGENTA +'╚═╗║─║║─║╔╗╔╗║║╔══╝║║──║╔══╝')
+print(Fore.MAGENTA +'╔═╝║╔╝╚╗║║╚╝║║║║───║╚═╗║╚══╗')
+print(Fore.MAGENTA +'╚══╝╚══╝╚╝──╚╝╚╝───╚══╝╚═══╝')
+print(Fore.MAGENTA +'╔══╗╔╗──╔═══╗╔══╗╔╗─╔╗╔═══╗╔═══╗')
+print(Fore.MAGENTA +'║╔═╝║║──║╔══╝║╔╗║║╚═╝║║╔══╝║╔═╗║')
+print(Fore.MAGENTA +'║║──║║──║╚══╗║╚╝║║╔╗─║║╚══╗║╚═╝║')
+print(Fore.MAGENTA +'║║──║║──║╔══╝║╔╗║║║╚╗║║╔══╝║╔╗╔╝')
+print(Fore.MAGENTA +'║╚═╗║╚═╗║╚══╗║║║║║║─║║║╚══╗║║║║')
+print(Fore.MAGENTA +'╚══╝╚══╝╚═══╝╚╝╚╝╚╝─╚╝╚═══╝╚╝╚╝')
+
+#Версия программы
+print (Fore.CYAN +'version 2.4.5 by Dengama')
+#Платформа и версия системы
+print (Fore.GREEN +sys.platform,sys.version,'\n')
+print (Fore.GREEN +'Next locations would be cleared:',Fore.RED +'Recycle Bin, Temp, Dowloads')
+print (Fore.GREEN +'Files from desktop would be    :',Fore.RED +'collected')
+print (Fore.GREEN +'Press Ctrl + C for cancel')
+print ('-------------------------------------------------------------')
+#Общая обработка
+try:
+    #Быстрая очистка без подтверждений
+    if input('Skip checks? (y/n) ') == 'y':
+        #Очистка корзины
+        try:
+            print ('Clearing Bin...')
+            #Функция очистки корзины
+            EmptyBin()
+            print ('Done')
+        #Обработка ошибок доступа
+        except PermissionError:
+            print(str(sys.exc_info()[1]))
+            try:
+                print ('Clearing Temp...')
+                #Функция очистки темпа
+                TempClean()
+                time.sleep(3)
+                pathlib.Path('C:/Users/'+UserName+'/AppData/Local'+'/Temp').mkdir(parents=True, exist_ok=True)
+                print ('Done')
+            #Обработка ошибок доступа
+            except PermissionError:
+                print(str(sys.exc_info()[1]))
+                try:
+                    print ('Clearing Downloads...')
+                    #Функция очистки загрузок
+                    DownloadsClean()
+                    time.sleep(3)
+                    pathlib.Path('C:/Users/'+UserName+'/Downloads').mkdir(parents=True, exist_ok=True)
+                    print ('Done')
+                #Обработка ошибок доступа
+                except PermissionError:
+                    print(str(sys.exc_info()[1]))
+                    try:
+                        print('Collecting desktop files...')
+                        shutil.move ('C:/Users/'+UserName+'/desktop', 'c:/desktop-files')
+                        pathlib.Path('c:/users/'+UserName+'/desktop').mkdir(parents=True, exist_ok=True)
+                        shutil.move ('c:/desktop-files','c:/users/aeos7/desktop')
+                        print('Files on Desktop colldected')
+                    except PermissionError:
+                        print('\n')
+                        print(str(sys.exc_info()[1]))
+                    #Обработка ошибок доступа
+                    except FileNotFoundError:
+                        print('\n')
+                        print(str(sys.exc_info()[1]))
+                #Обработка ошибок не найденного файла
+                except FileNotFoundError:
+                    print(str(sys.exc_info()[1]))
+                    try:
+                        print('Collecting desktop files...')
+                        shutil.move ('C:/Users/'+UserName+'/desktop', 'c:/desktop-files')
+                        pathlib.Path('c:/users/'+UserName+'/desktop').mkdir(parents=True, exist_ok=True)
+                        shutil.move ('c:/desktop-files','c:/users/aeos7/desktop')
+                        print('Files on Desktop colldected')
+                    except PermissionError:
+                        print('\n')
+                        print(str(sys.exc_info()[1]))
+                    #Обработка ошибок доступа
+                    except FileNotFoundError:
+                        print('\n')
+                        print(str(sys.exc_info()[1]))
+                try:
+                    print('Collecting desktop files...')
+                    shutil.move ('C:/Users/'+UserName+'/desktop', 'c:/desktop-files')
+                    pathlib.Path('c:/users/'+UserName+'/desktop').mkdir(parents=True, exist_ok=True)
+                    shutil.move ('c:/desktop-files','c:/users/aeos7/desktop')
+                    print('Files on Desktop colldected')
+                except PermissionError:
+                    print('\n')
+                    print(str(sys.exc_info()[1]))
+                #Обработка ошибок доступа
+                except FileNotFoundError:
+                    print('\n')
+                    print(str(sys.exc_info()[1]))
+            #Обработка ошибок не найденного файла
+            except FileNotFoundError:
+                print(str(sys.exc_info()[1]))
+                try:
+                    print ('Clearing Downloads...')
+                    #Функция очистки загрузок
+                    DownloadsClean()
+                    time.sleep(3)
+                    pathlib.Path('C:/Users/'+UserName+'/Downloads').mkdir(parents=True, exist_ok=True)
+                    print ('Done')
+                #Обработка ошибок доступа
+                except PermissionError:
+                    print(str(sys.exc_info()[1]))
+                #Обработка ошибок не найденного файла
+                except FileNotFoundError:
+                    print(str(sys.exc_info()[1]))
+            try:
+                print ('Clearing Downloads...')
+                #Функция очистки загрузок
+                DownloadsClean()
+                time.sleep(3)
+                pathlib.Path('C:/Users/'+UserName+'/Downloads').mkdir(parents=True, exist_ok=True)
+                print ('Done')
+            #Обработка ошибок доступа
+            except PermissionError:
+                print(str(sys.exc_info()[1]))
+            #Обработка ошибок не найденного файла
+            except FileNotFoundError:
+                print(str(sys.exc_info()[1]))
+            try:
+                print('Collecting desktop files...')
+                shutil.move ('C:/Users/'+UserName+'/desktop', 'c:/desktop-files')
+                pathlib.Path('c:/users/'+UserName+'/desktop').mkdir(parents=True, exist_ok=True)
+                shutil.move ('c:/desktop-files','c:/users/aeos7/desktop')
+                print('Files on Desktop colldected')
+            except PermissionError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+            #Обработка ошибок доступа
+            except FileNotFoundError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+        #Обработка ошибок не найденного файла
+        except FileNotFoundError:
+            print(str(sys.exc_info()[1]))
+            try:
+                print ('Clearing Temp...')
+                #Функция очистки темпа
+                TempClean()
+                time.sleep(3)
+                pathlib.Path('C:/Users/'+UserName+'/AppData/Local'+'/Temp').mkdir(parents=True, exist_ok=True)
+                print ('Done')
+            #Обработка ошибок доступа
+            except PermissionError:
+                print(str(sys.exc_info()[1]))
+                try:
+                    print ('Clearing Downloads...')
+                    #Функция очистки загрузок
+                    DownloadsClean()
+                    time.sleep(3)
+                    pathlib.Path('C:/Users/'+UserName+'/Downloads').mkdir(parents=True, exist_ok=True)
+                    print ('Done')
+                #Обработка ошибок доступа
+                except PermissionError:
+                    print(str(sys.exc_info()[1]))
+                #Обработка ошибок доступа
+                except FileNotFoundError:
+                    print(str(sys.exc_info()[1]))
+            #Обработка ошибок доступа
+            except FileNotFoundError:
+                print(str(sys.exc_info()[1]))
+                try:
+                    print ('Clearing Downloads...')
+                    #Функция очистки загрузок
+                    DownloadsClean()
+                    time.sleep(3)
+                    pathlib.Path('C:/Users/'+UserName+'/Downloads').mkdir(parents=True, exist_ok=True)
+                    print ('Done')
+                #Обработка ошибок доступа
+                except PermissionError:
+                    print(str(sys.exc_info()[1]))
+                    #Обработка ошибок доступа
+                except FileNotFoundError:
+                    print(str(sys.exc_info()[1]))
+        try:
+            print ('Clearing Temp...')
+            #Функция очистки темпа
+            TempClean()
+            time.sleep(3)
+            pathlib.Path('C:/Users/'+UserName+'/AppData/Local'+'/Temp').mkdir(parents=True, exist_ok=True)
+            print ('Done')
+        #Обработка ошибок доступа
+        except PermissionError:
+            print(str(sys.exc_info()[1]))
+        try:
+            print ('Clearing Downloads...')
+            #Функция очистки загрузок
+            DownloadsClean()
+            time.sleep(3)
+            pathlib.Path('C:/Users/'+UserName+'/Downloads').mkdir(parents=True, exist_ok=True)
+            print ('Done')
+        except:
+            print(str(sys.exc_info()[1]))
+        try:
+            print('Collecting desktop files...')
+            shutil.move ('C:/Users/'+UserName+'/desktop', 'c:/desktop-files')
+            pathlib.Path('c:/users/'+UserName+'/desktop').mkdir(parents=True, exist_ok=True)
+            shutil.move ('c:/desktop-files','c:/users/aeos7/desktop')
+            print('Files on Desktop colldected')
+        except PermissionError:
+            print('\n')
+            print(str(sys.exc_info()[1]))
+        #Обработка ошибок доступа
+        except FileNotFoundError:
+            print('\n')
+            print(str(sys.exc_info()[1]))
+    #Подтверждение очистки корзины
+    else:
+        if input('Clear Recycle bin? (y/n) ') == 'y':
+            print('Clearing Recycle bin...')
+            try:
+               # print('Folder listing:\n')
+                #RecycleBinList = [p for p in pathlib.Path('.').iterdir() if p.is_file()]
+               # for p in pathlib.Path(DPath).iterdir():
+                #    if p.is_file():
+                #        print(p)
+                #        flist.append(p)
+               # time.sleep(5)
+                EmptyBin()
+                print('Bin cleared')
+            #Обработка ошибок доступа
+            except PermissionError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+            #Обработка ошибок доступа
+            except FileNotFoundError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+        else:
+            print('Recycle bin clearing skipped')
+        if input ('Clear Temp folder? (y/n) ') == 'y':
+            print('Clearing Temp folder...')
+            try:
+                #Функция очистки темпа
+                print('Folder listing:\n')
+                TempFolderList = [p for p in pathlib.Path('.').iterdir() if p.is_file()]
+                for p in pathlib.Path(TempPath).iterdir():
+                    if p.is_file():
+                        print(p)
+                        TempFolderList.append(p)
+                time.sleep(4)
+                TempClean()
+                time.sleep(3)
+                pathlib.Path('C:/Users/'+UserName+'/AppData/Local'+'/Temp').mkdir(parents=True, exist_ok=True)
+                print('Temp folder cleared')
+            #Обработка ошибок доступа
+            except PermissionError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+            #Обработка ошибок доступа
+            except FileNotFoundError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+        else:
+            print('Temp folder clearing skipped')
+        if input ('Clear Downloads folder? (y/n) ') == 'y':
+            print('Clearing Dowloads folder...')
+            try:
+                print('Folder listing:\n')
+                DownFolderList = [p for p in pathlib.Path('.').iterdir() if p.is_file()]
+                for p in pathlib.Path(DownloadsPath).iterdir():
+                    if p.is_file():
+                        print(p)
+                        DownFolderList.append(p)
+                time.sleep(4)
+                #Функция очистки загрузок
+                DownloadsClean()
+                time.sleep(3)
+                pathlib.Path('C:/Users/'+UserName+'/Downloads').mkdir(parents=True, exist_ok=True)
+                print('Dowloads folder cleared')
+            #Обработка ошибок доступа
+            except PermissionError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+            #Обработка ошибок доступа
+            except FileNotFoundError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+        else:
+            print('Dowloads folder clearing skipped')
+        if input ('Collect files on Desktop? (y/n) ') == 'y':
+            print('Collecting desktop files...')
+            try:
+                shutil.move ('C:/Users/'+UserName+'/desktop', 'c:/desktop-files')
+                pathlib.Path('c:/users/'+UserName+'/desktop').mkdir(parents=True, exist_ok=True)
+                shutil.move ('c:/desktop-files','c:/users/aeos7/desktop')
+                print('Files on Desktop colldected')
+            except PermissionError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+            #Обработка ошибок доступа
+            except FileNotFoundError:
+                print('\n')
+                print(str(sys.exc_info()[1]))
+#Обработка ввода Ctrl + C
+except KeyboardInterrupt:
+    print('Cancel')
+print ('-------------------------------------------------------------')
+try:
+    input ("\nPress Enter for exit...")
+except KeyboardInterrupt:
+    print (' ')
